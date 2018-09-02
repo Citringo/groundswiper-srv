@@ -17,7 +17,9 @@ using System.Windows.Shapes;
 
 namespace GroundSwiperSrv
 {
-	using static Keys;
+	using SuperSocket.SocketBase;
+	using SuperSocket.SocketBase.Config;
+	using SuperSocket.WebSocket;
 	/// <summary>
 	/// MainWindow.xaml の相互作用ロジック
 	/// </summary>
@@ -27,6 +29,7 @@ namespace GroundSwiperSrv
 		{
 			InitializeComponent();
 			DataContext = this;
+
 		}
 		
 		public bool Enabled
@@ -62,47 +65,94 @@ namespace GroundSwiperSrv
 			DependencyProperty.Register("Log", typeof(string), typeof(MainWindow), new PropertyMetadata(""));
 
 		bool isConnecting = false;
-		
-		Keys[] keys = { A, Z, S, X, D, C, F, V, G, B, H, N, J, M, K, Oemcomma };
+
+		WebSocketSession session;
+
+		WebSocketServer server;
 
 		void LogWrite(string text)
 		{
 			Log += text += Environment.NewLine;
 		}
 
-		private async void Button_Click(object sender, RoutedEventArgs e)
+		private void Button_Click(object sender, RoutedEventArgs e)
 		{
 			Enabled = false;
-
-			isConnecting = !isConnecting;
-
-			if (isConnecting)
-			{
-#pragma warning disable CS4014 // この呼び出しを待たないため、現在のメソッドの実行は、呼び出しが完了する前に続行します
-				Task.Run(async () =>
-				{
-					var i = 0;
-					while (isConnecting)
-					{
-						foreach (var k in keys) KeySender.KeyDown(k);
-						await Task.Delay(50);
-						foreach (var k in keys) KeySender.KeyUp(k);
-						await Task.Delay(10);
-						i++;
-						if (keys.Length <= i)
-							i = 0;
-					};
-				});
-#pragma warning restore CS4014 // この呼び出しを待たないため、現在のメソッドの実行は、呼び出しが完了する前に続行します
-			}
-
-			LogWrite("サーバーを" +  (isConnecting ? "起動" : "終了") + "しました");
+			var state = false;
+			if (!isConnecting)
+				state = StartServer();
+			else
+				state = StopServer();
+			if (!state)
+				LogWrite("失敗しました");
+			else
+				LogWrite("サーバーを" +  (isConnecting ? "起動" : "終了") + "しました");
 
 			ServerButtonText = isConnecting ? "終了" : "起動";
 
-
 			Enabled = true;
+		}
 
+
+
+		private bool StartServer()
+		{
+			if (!int.TryParse(Port, out var port))
+				return false;
+
+			var server = new WebSocketServer();
+			var config = new RootConfig();
+			var srvConfig = new ServerConfig
+			{
+				Port = port,
+				Ip = "Any",
+				MaxConnectionNumber = 1,
+				Mode = SocketMode.Tcp,
+				Name = "GroundSwiper Server"
+			};
+			server.NewSessionConnected += s => session = s;
+			server.NewDataReceived += (s, d) =>
+			{
+				// d[0]: mode (0: down 1: up)
+				// d[1]: keyCode
+				if (d.Length != 2)
+				{
+					LogWrite($"Invalid Data Length {d.Length}!");
+					return;
+				}
+
+				switch (d[0])
+				{
+					case 0:
+						KeySender.KeyDown(d[1]);
+						break;
+					case 1:
+						KeySender.KeyUp(d[1]);
+						break;
+					default:
+						LogWrite($"Invalid Data Mode {d[0]}");
+						break;
+				}
+			};
+			server.Setup(config, srvConfig);
+
+			server.Start();
+
+			this.server = server;
+			isConnecting = true;
+			return true;
+		}
+
+		public bool StopServer()
+		{
+			if (server == null)
+			{
+				LogWrite("サーバーは既に起動していません。");
+				return false;
+			}
+			server.Stop();
+			isConnecting = false;
+			return true;
 		}
 
 	}
@@ -111,14 +161,14 @@ namespace GroundSwiperSrv
 		static byte up = 0;
 		static byte down = 2;
 
-		public static void KeyDown(Keys key)
+		public static void KeyDown(byte key)
 		{
-			keybd_event((byte)key, 0, up, (UIntPtr)0);
+			keybd_event(key, 0, up, (UIntPtr)0);
 		}
 
-		public static void KeyUp(Keys key)
+		public static void KeyUp(byte key)
 		{
-			keybd_event((byte)key, 0, down, (UIntPtr)0);
+			keybd_event(key, 0, down, (UIntPtr)0);
 		}
 
 		[DllImport("user32.dll")]

@@ -1,0 +1,21 @@
+﻿<Window x:Class="GroundSwiperSrv.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:GroundSwiperSrv"
+        mc:Ignorable="d"
+		IsEnabled="{Binding Enabled}"
+		FontSize="15"
+        Title="MainWindow" Height="428" Width="403">
+	<DockPanel Margin="32,32">
+		<Label DockPanel.Dock="Top" FontSize="30" FontFamily="Segoe UI Light" Margin="0,0,0,32">Ground Swiper - Server</Label>
+		<StackPanel DockPanel.Dock="Top" HorizontalAlignment="Center" Orientation="Horizontal" Margin="0,0,0,32">
+			<Label>Port:</Label>
+			<TextBox Text="{Binding Port}" Width="64" VerticalContentAlignment="Center" Margin="0,0,16,0"/>
+			<Button Click="Button_Click" Content="{Binding ServerButtonText}" MinWidth="64"/>
+		</StackPanel>
+		<TextBox IsReadOnly="True" Text="{Binding Log}"/>
+
+	</DockPanel>
+</Window>
